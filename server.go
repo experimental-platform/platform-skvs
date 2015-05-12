@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -15,9 +16,11 @@ var DATA_PATH string
 var PORT int
 
 type ResponseData struct {
-	StatusCode int    `json:"-"`
-	Key        string `json:"key"`
-	Value      string `json:"value"`
+	StatusCode  int      `json:"-"`
+	Key         string   `json:"key"`
+	IsNamespace bool     `json:"namespace"`
+	Value       string   `json:"value,omitempty"`
+	Keys        []string `json:"keys,omitempty"` // need better decision here
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
@@ -25,11 +28,19 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path[1:]
 	key_path := expandPath(key)
 	value := r.PostForm.Get("value")
+	var keys []string
 	var err error
 	var responseData ResponseData
+
 	switch r.Method {
 	case "GET":
-		value, err = readKey(key_path)
+		var values []string
+		values, err = readKey(key_path)
+		if len(values) == 1 {
+			value = values[0]
+		} else {
+			keys = values
+		}
 	case "DELETE":
 		err = deleteKey(key_path)
 	case "PUT", "POST":
@@ -37,12 +48,18 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err == nil {
-		responseData = ResponseData{StatusCode: http.StatusOK, Key: key, Value: value}
+		responseData = ResponseData{StatusCode: http.StatusOK, Key: key, Value: value, Keys: keys}
+		if keys == nil {
+			responseData.IsNamespace = false
+		} else {
+			responseData.IsNamespace = true
+		}
 	} else {
 		responseData = ResponseData{StatusCode: http.StatusNotFound, Key: key}
 	}
 
 	content, err := json.Marshal(responseData)
+	fmt.Println(string(content))
 	if err == nil {
 		w.WriteHeader(responseData.StatusCode)
 		w.Write(append(content, '\n'))
@@ -53,13 +70,22 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func readKey(path string) (string, error) {
-	var content []byte
+func readKey(path string) ([]string, error) {
+	var result []string
 	var err error
-	if err = fileExists(path); err == nil {
-		content, err = ioutil.ReadFile(path)
+
+	if err = isDirectory(path); err == nil {
+		if files, err := ioutil.ReadDir(path); err == nil {
+			for _, f := range files {
+				result = append(result, f.Name())
+			}
+		}
+	} else if err = fileExists(path); err == nil {
+		if content, err := ioutil.ReadFile(path); err == nil {
+			result = append(result, string(content))
+		}
 	}
-	return string(content), err
+	return result, err
 }
 
 func putKey(path string, value string) error {
@@ -75,10 +101,19 @@ func expandPath(key string) string {
 	return filepath.Join(DATA_PATH, key)
 }
 
-// Return nil if File exists, else non-nil
+// Return nil if File exists, else non-nil value
 func fileExists(filename string) error {
 	_, err := os.Stat(filename)
 	return err
+}
+
+// Return nil if filename is a directory, else non-nil value
+func isDirectory(filename string) error {
+	stat, err := os.Stat(filename)
+	if err == nil && !stat.IsDir() {
+		return errors.New("'" + filename + "' is not a directory!")
+	}
+	return nil
 }
 
 func main() {
