@@ -19,8 +19,9 @@ type ResponseData struct {
 	StatusCode  int      `json:"-"`
 	Key         string   `json:"key"`
 	IsNamespace bool     `json:"namespace"`
-	Value       string   `json:"value,omitempty"`
-	Keys        []string `json:"keys,omitempty"` // need better decision here
+	Value       string   `json:"value"`
+	Keys        []string `json:"keys,omitempty"`  // need better decision here
+	Error       string   `json:"error,omitempty"` // need better decision here
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
@@ -35,11 +36,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		var values []string
-		values, err = readKey(key_path)
-		if len(values) == 1 {
-			value = values[0]
-		} else {
+		var fileInfo os.FileInfo
+		values, fileInfo, err = readKey(key_path)
+		if fileInfo.IsDir() {
 			keys = values
+		} else {
+			value = values[0]
 		}
 	case "DELETE":
 		err = deleteKey(key_path)
@@ -55,11 +57,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			responseData.IsNamespace = true
 		}
 	} else {
-		responseData = ResponseData{StatusCode: http.StatusNotFound, Key: key}
+		responseData = ResponseData{StatusCode: http.StatusNotFound, Key: key, Error: err.Error()}
 	}
 
 	content, err := json.Marshal(responseData)
-	fmt.Println(string(content))
 	if err == nil {
 		w.WriteHeader(responseData.StatusCode)
 		w.Write(append(content, '\n'))
@@ -70,22 +71,28 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func readKey(path string) ([]string, error) {
+func readKey(path string) ([]string, os.FileInfo, error) {
 	var result []string
 	var err error
 
-	if err = isDirectory(path); err == nil {
-		if files, err := ioutil.ReadDir(path); err == nil {
-			for _, f := range files {
-				result = append(result, f.Name())
+	var fileInfo os.FileInfo
+	fileInfo, err = os.Stat(path)
+	if err == nil {
+		if fileInfo.IsDir() {
+			var files []os.FileInfo
+			if files, err = ioutil.ReadDir(path); err == nil {
+				for _, f := range files {
+					result = append(result, f.Name())
+				}
+			}
+		} else {
+			var content []byte
+			if content, err = ioutil.ReadFile(path); err == nil {
+				result = append(result, string(content))
 			}
 		}
-	} else if err = fileExists(path); err == nil {
-		if content, err := ioutil.ReadFile(path); err == nil {
-			result = append(result, string(content))
-		}
 	}
-	return result, err
+	return result, fileInfo, err
 }
 
 func putKey(path string, value string) error {
