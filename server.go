@@ -38,12 +38,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case "GET":
 			var values []string
-			var fileInfo os.FileInfo
-			values, fileInfo, err = readKey(key_path)
-			if fileInfo.IsDir() {
-				keys = values
-			} else {
+			values, err = readKey(key_path)
+			if len(values) == 1 {
 				value = values[0]
+			} else {
+				keys = values
 			}
 		case "DELETE":
 			err = deleteKey(key_path)
@@ -77,7 +76,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func readKey(path string) ([]string, os.FileInfo, error) {
+func readKey(path string) ([]string, error) {
 	var result []string
 	var err error
 
@@ -98,7 +97,7 @@ func readKey(path string) ([]string, os.FileInfo, error) {
 			}
 		}
 	}
-	return result, fileInfo, err
+	return result, err
 }
 
 func putKey(path string, value string) error {
