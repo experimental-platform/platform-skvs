@@ -3,17 +3,14 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
+	flags "github.com/jessevdk/go-flags"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 )
-
-var DATA_PATH string
-var PORT int
 
 type ResponseData struct {
 	StatusCode  int      `json:"-"`
@@ -105,7 +102,7 @@ func deleteKey(path string) error {
 }
 
 func expandPath(key string) string {
-	return filepath.Join(DATA_PATH, key)
+	return filepath.Join(opts.DataPath, key)
 }
 
 // Return nil if File exists, else non-nil value
@@ -123,14 +120,17 @@ func isDirectory(filename string) error {
 	return nil
 }
 
+var opts struct {
+	DataPath string `short:"d" long:"data-path" default:"./data" description:"Directory where files will be stored."`
+	Port     int    `short:"p" long:"port" default:"8080" description:"Port where server is listening for requests."`
+}
+
 func main() {
-	flag.StringVar(&DATA_PATH, "data-path", "./data", "Directory where files will be stored.")
-	flag.IntVar(&PORT, "port", 8080, "Port where server is listening for requests")
-	flag.Parse()
-	DATA_PATH, _ = filepath.Abs(DATA_PATH)
-	fmt.Println("DATA_PATH:", DATA_PATH)
-	fmt.Println("PORT:", PORT)
+	flags.Parse(&opts)
+	opts.DataPath, _ = filepath.Abs(opts.DataPath)
+	fmt.Println("DATA_PATH:", opts.DataPath)
+	fmt.Println("PORT:", opts.Port)
 
 	http.HandleFunc("/", handler)
-	http.ListenAndServe(":"+strconv.Itoa(PORT), nil)
+	http.ListenAndServe(":"+strconv.Itoa(opts.Port), nil)
 }
