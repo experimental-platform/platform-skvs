@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 )
 
@@ -22,44 +23,50 @@ type ResponseData struct {
 	Error       string   `json:"error,omitempty"` // need better decision here
 }
 
+var validKey = regexp.MustCompile(`^[a-zA-Z0-9_\-/]+$`)
+
 func handler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	key := r.URL.Path[1:]
-	key_path := expandPath(key)
-	value := r.PostForm.Get("value")
-	var keys []string
-	var err error
 	var responseData ResponseData
+	key := r.URL.Path[1:]
+	if validKey.MatchString(key) {
+		key_path := expandPath(key)
+		value := r.PostForm.Get("value")
+		var keys []string
+		var err error
 
-	switch r.Method {
-	case "GET":
-		var values []string
-		var fileInfo os.FileInfo
-		values, fileInfo, err = readKey(key_path)
-		if fileInfo.IsDir() {
-			keys = values
-		} else {
-			value = values[0]
+		switch r.Method {
+		case "GET":
+			var values []string
+			var fileInfo os.FileInfo
+			values, fileInfo, err = readKey(key_path)
+			if fileInfo.IsDir() {
+				keys = values
+			} else {
+				value = values[0]
+			}
+		case "DELETE":
+			err = deleteKey(key_path)
+		case "PUT", "POST":
+			err = putKey(key_path, value)
 		}
-	case "DELETE":
-		err = deleteKey(key_path)
-	case "PUT", "POST":
-		err = putKey(key_path, value)
-	}
 
-	if err == nil {
-		responseData = ResponseData{StatusCode: http.StatusOK, Key: key, Value: value, Keys: keys}
-		if keys == nil {
-			responseData.IsNamespace = false
+		if err == nil {
+			responseData = ResponseData{StatusCode: http.StatusOK, Key: key, Value: value, Keys: keys}
+			if keys == nil {
+				responseData.IsNamespace = false
+			} else {
+				responseData.IsNamespace = true
+			}
 		} else {
-			responseData.IsNamespace = true
+			responseData = ResponseData{StatusCode: http.StatusNotFound, Key: key, Error: err.Error()}
 		}
 	} else {
-		responseData = ResponseData{StatusCode: http.StatusNotFound, Key: key, Error: err.Error()}
+		responseData = ResponseData{StatusCode: http.StatusBadRequest, Key: key, Error: "Invalid key. Only " + validKey.String() + " allowed!"}
 	}
 
 	content, err := json.Marshal(responseData)
-	if err == nil {
+	if err == nil && responseData.StatusCode != 0 {
 		callHook(key, r.Method)
 		w.WriteHeader(responseData.StatusCode)
 		w.Write(append(content, '\n'))
