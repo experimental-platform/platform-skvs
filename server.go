@@ -7,6 +7,7 @@ import (
 	flags "github.com/jessevdk/go-flags"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -59,6 +60,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	content, err := json.Marshal(responseData)
 	if err == nil {
+		callHook(key, r.Method)
 		w.WriteHeader(responseData.StatusCode)
 		w.Write(append(content, '\n'))
 	} else {
@@ -120,9 +122,24 @@ func isDirectory(filename string) error {
 	return nil
 }
 
+// ignore errors, just print them and continue
+func callHook(key, action string) {
+	for _, hookUrl := range opts.WebHookUrls {
+		if hookUrl[:4] != "http" {
+			hookUrl = "http://" + hookUrl
+		}
+		go func(hookUrl string, hookData url.Values) {
+			if _, err := http.PostForm(hookUrl, hookData); err != nil {
+				fmt.Printf("WebHook Post failed: %s", err)
+			}
+		}(hookUrl, url.Values{"key": {key}, "action": {action}})
+	}
+}
+
 var opts struct {
-	DataPath string `short:"d" long:"data-path" default:"./data" description:"Directory where files will be stored."`
-	Port     int    `short:"p" long:"port" default:"8080" description:"Port where server is listening for requests."`
+	DataPath    string   `short:"d" long:"data-path" default:"./data" description:"Directory where files will be stored."`
+	Port        int      `short:"p" long:"port" default:"8080" description:"Port where server is listening for requests."`
+	WebHookUrls []string `short:"w" long:"webhook-url" description:"WebHook-Urls."`
 }
 
 func main() {
