@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 type ResponseData struct {
@@ -66,7 +67,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	content, err := json.Marshal(responseData)
 	if err == nil && responseData.StatusCode != 0 {
-		callHook(key, r.Method)
+		callHooks(key, r.Method)
 		w.WriteHeader(responseData.StatusCode)
 		w.Write(append(content, '\n'))
 	} else {
@@ -126,6 +127,16 @@ func isDirectory(filename string) error {
 		return errors.New("'" + filename + "' is not a directory!")
 	}
 	return nil
+}
+
+func callHooks(key, action string) {
+	keyparts := strings.Split(key, "/")
+	tmpkey := keyparts[0]
+	callHook(tmpkey, action)
+	for _, keypart := range keyparts[1:] {
+		tmpkey = tmpkey + "/" + keypart
+		callHook(tmpkey, action)
+	}
 }
 
 // ignore errors, just print them and continue
