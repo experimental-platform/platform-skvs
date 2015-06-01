@@ -69,6 +69,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	if err == nil && responseData.StatusCode != 0 {
 		callHooks(key, r.Method)
 		w.WriteHeader(responseData.StatusCode)
+		w.Header().Set("Content-Type", "application/json")
 		w.Write(append(content, '\n'))
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
