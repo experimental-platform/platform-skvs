@@ -41,10 +41,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			var values []string
 			var isNamespace bool
 			values, isNamespace, err = readKey(key_path)
-			if isNamespace {
-				keys = values
-			} else {
-				value = values[0]
+			if err == nil {
+				if isNamespace {
+					keys = values
+				} else {
+					value = values[0]
+				}
 			}
 		case "DELETE":
 			err = deleteKey(key_path)
