@@ -39,11 +39,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case "GET":
 			var values []string
-			values, err = readKey(key_path)
-			if len(values) == 1 {
-				value = values[0]
-			} else {
+			var isNamespace bool
+			values, isNamespace, err = readKey(key_path)
+			if isNamespace {
 				keys = values
+			} else {
+				value = values[0]
 			}
 		case "DELETE":
 			err = deleteKey(key_path)
@@ -78,14 +79,16 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func readKey(path string) ([]string, error) {
+func readKey(path string) ([]string, bool, error) {
 	var result []string
 	var err error
 
 	var fileInfo os.FileInfo
 	fileInfo, err = os.Stat(path)
+	isNamespace := false
 	if err == nil {
 		if fileInfo.IsDir() {
+			isNamespace = true
 			var files []os.FileInfo
 			if files, err = ioutil.ReadDir(path); err == nil {
 				for _, f := range files {
@@ -99,7 +102,7 @@ func readKey(path string) ([]string, error) {
 			}
 		}
 	}
-	return result, err
+	return result, isNamespace, err
 }
 
 func putKey(path string, value string) error {
