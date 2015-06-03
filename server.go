@@ -148,12 +148,9 @@ func callHooks(key, action string) {
 // ignore errors, just print them and continue
 func callHook(key, action string) {
 	for _, hookUrl := range opts.WebHookUrls {
-		if hookUrl[:4] != "http" {
-			hookUrl = "http://" + hookUrl
-		}
 		go func(hookUrl string, hookData url.Values) {
 			if _, err := http.PostForm(hookUrl, hookData); err != nil {
-				fmt.Printf("WebHook Post failed: %s", err)
+				fmt.Printf("WebHook Post failed: %s\n", err)
 			}
 		}(hookUrl, url.Values{"key": {key}, "action": {action}})
 	}
@@ -170,6 +167,13 @@ func main() {
 	opts.DataPath, _ = filepath.Abs(opts.DataPath)
 	fmt.Println("DATA_PATH:", opts.DataPath)
 	fmt.Println("PORT:", opts.Port)
+	for i, hookUrl := range opts.WebHookUrls {
+		if hookUrl[:4] != "http" {
+			opts.WebHookUrls[i] = "http://" + hookUrl
+		}
+	}
+
+	fmt.Printf("HOOKS: %+v\n", opts.WebHookUrls)
 
 	http.HandleFunc("/", handler)
 	http.ListenAndServe(":"+strconv.Itoa(opts.Port), nil)
