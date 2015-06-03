@@ -151,6 +151,8 @@ func callHook(key, action string) {
 		go func(hookUrl string, hookData url.Values) {
 			if _, err := http.PostForm(hookUrl, hookData); err != nil {
 				fmt.Printf("WebHook Post failed: %s\n", err)
+     } else {
+       fmt.Printf("Called '%s' with Payload '%+v'.\n", hookUrl, hookData)
 			}
 		}(hookUrl, url.Values{"key": {key}, "action": {action}})
 	}
