@@ -43,6 +43,21 @@ func TestPutKeyWithNamespace(t *testing.T) {
 	}
 }
 
+func TestDeleteKey(t *testing.T) {
+	path := expandPath("foobar")
+	content := "foobar"
+	if err := os.MkdirAll(filepath.Dir(path), os.ModePerm); err != nil {
+		t.Errorf("Could not create key '%s'\n", path)
+	}
+	if err := ioutil.WriteFile(path, []byte(content), os.ModePerm); err != nil {
+		t.Errorf("Could not write file '%s' with content '%s'\n", path, content)
+	}
+	deleteKey(path)
+	if _, err := os.Stat(path); err == nil || !os.IsNotExist(err) {
+		t.Error(err)
+	}
+}
+
 func TestMain(m *testing.M) {
 	opts.DataPath, _ = filepath.Abs("./data-test")
 	exit := m.Run()
