@@ -2,6 +2,8 @@ package main
 
 import (
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -109,6 +111,43 @@ func TestReadKeyWithNamespace(t *testing.T) {
 	}
 	if len(results) != 2 {
 		t.Errorf("Too many/few results given (%+v).", results)
+	}
+}
+
+func TestHTTPGetKey(t *testing.T) {
+	cleanData()
+	// Key does not exists
+	req, err := http.NewRequest("GET", "http://localhost/foobar", nil)
+	if err != nil {
+		t.Error(err)
+	}
+	w := httptest.NewRecorder()
+	handler(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected Code %i, got %i", http.StatusNotFound, w.Code)
+	}
+
+	testFilePath := expandPath("foobar")
+	testContent := "foobar"
+	if err := os.MkdirAll(filepath.Dir(testFilePath), os.ModePerm); err != nil {
+		t.Errorf("Could not create directory '%s'\n", testFilePath)
+	}
+	if err := ioutil.WriteFile(testFilePath, []byte(testContent), os.ModePerm); err != nil {
+		t.Errorf("Could not write file '%s' with content '%s' (%v)\n", testFilePath, testContent, err)
+	}
+
+	req, err = http.NewRequest("GET", "http://localhost/foobar", nil)
+	if err != nil {
+		t.Error(err)
+	}
+	w = httptest.NewRecorder()
+	handler(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected Code %i, got %i", http.StatusNotFound, w.Code)
+	}
+	expectedBody := "{\"key\":\"foobar\",\"namespace\":false,\"value\":\"foobar\"}\n"
+	if w.Body.String() != expectedBody {
+		t.Errorf("Expected Body '%s', got '%s'", expectedBody, w.Body.String())
 	}
 }
 
