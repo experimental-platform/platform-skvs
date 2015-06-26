@@ -24,7 +24,7 @@ type ResponseData struct {
 	Error       string   `json:"error,omitempty"` // need better decision here
 }
 
-var validKey = regexp.MustCompile(`^[a-zA-Z0-9_\-/]+$`)
+var validKey = regexp.MustCompile(`^[a-zA-Z0-9_\-/:]+$`)
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
