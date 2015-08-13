@@ -18,3 +18,15 @@ Running tests:
 ```
 $ go test -v
 ```
+
+## Branch: Development
+
+[![Circle CI](https://circleci.com/gh/experimental-platform/platform-skvs.svg?style=svg&circle-token=fc272c0211c30a360d4d3206802e4a596fb34905)](https://circleci.com/gh/experimental-platform/platform-skvs)
+
+All development branches stem from and (re-)integrate here.
+
+## Branch: Master
+
+[![Circle CI](https://circleci.com/gh/experimental-platform/platform-skvs/tree/master.svg?style=svg&circle-token=fc272c0211c30a360d4d3206802e4a596fb34905)](https://circleci.com/gh/experimental-platform/platform-skvs/tree/master)
+
+This is the base for &alpha;-channel releases.
