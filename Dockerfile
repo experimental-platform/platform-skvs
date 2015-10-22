@@ -1,6 +1,6 @@
 FROM experimentalplatform/ubuntu:latest
 
-COPY skvs /skvs
+COPY platform-skvs /skvs
 
 CMD ["/skvs", "--port", "80", "--webhook-url", "hook"]
 
