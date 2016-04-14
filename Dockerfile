@@ -1,7 +1,8 @@
-FROM experimentalplatform/ubuntu:latest
+FROM scratch
 
+COPY dumb-init /dumb-init
 COPY platform-skvs /skvs
 
-CMD ["dumb-init", "/skvs", "--port", "80", "--webhook-url", "hook"]
+ENTRYPOINT ["/dumb-init", "/skvs", "--port", "80", "--webhook-url", "hook"]
 
 EXPOSE 80
