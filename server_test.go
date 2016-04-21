@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestExpandPath(t *testing.T) {
@@ -299,6 +300,40 @@ func TestCacheUpdatedOnDelete(t *testing.T) {
 	entry, err = readKey(testPath)
 	if err == nil {
 		t.Errorf("Entry '%+v' at '%v' should not exist, but does.", entry, testPath)
+	}
+}
+
+func TestPutKeyCachedWriteUpdatedOnDisk(t *testing.T) {
+	cleanData()
+	testPathFile := expandPath("foo/bar")
+	testContent := "foobar"
+	var mtime time.Time
+
+	err := putKey(testPathFile, testContent)
+	if err != nil {
+		t.Fail()
+	}
+
+	if fileInfo, err := os.Stat(testPathFile); err != nil {
+		t.Fail()
+	} else {
+		mtime = fileInfo.ModTime()
+	}
+
+	time.Sleep(time.Millisecond * 1200)
+
+	err = putKey(testPathFile, testContent)
+	if err != nil {
+		t.Fail()
+	}
+
+	if fileInfo, err := os.Stat(testPathFile); err != nil {
+		t.Fail()
+	} else {
+		newMTime := fileInfo.ModTime()
+		if newMTime != mtime {
+			t.Errorf("File's mtime unncessarily changed from %v to %v.", mtime, newMTime)
+		}
 	}
 }
 

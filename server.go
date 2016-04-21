@@ -131,6 +131,11 @@ func readKey(path string) (Entry, error) {
 }
 
 func putKey(path string, value string) error {
+	// if cache already contains identical data, then do nothing
+	if v, ok := skvsCache[path]; ok && len(v.data) == 1 && v.data[0] == value {
+		return nil
+	}
+
 	os.MkdirAll(filepath.Dir(path), os.ModePerm)
 	err := ioutil.WriteFile(path, []byte(value), os.ModePerm)
 	if err != nil {
