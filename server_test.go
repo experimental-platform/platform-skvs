@@ -74,15 +74,15 @@ func TestReadKeyWithoutNamespace(t *testing.T) {
 		t.Errorf("Could not write file '%s' with content '%s'\n", testPath, testContent)
 	}
 
-	results, isNamespace, err := readKey(testPath)
+	entry, err := readKey(testPath)
 	if err != nil {
 		t.Error(err)
 	}
-	if isNamespace {
+	if entry.isNamespace {
 		t.Error("Is namespaced value, but should not be.")
 	}
-	if len(results) != 1 || results[0] != testContent {
-		t.Errorf("Too many results given (%+v) or first result has not expected content (%s).", results, testContent)
+	if len(entry.data) != 1 || entry.data[0] != testContent {
+		t.Errorf("Too many results given (%+v) or first result has not expected content (%s).", entry.data, testContent)
 	}
 }
 
@@ -102,15 +102,15 @@ func TestReadKeyWithNamespace(t *testing.T) {
 		t.Errorf("Could not write file '%s' with content '%s'\n", testPathFile2, testContent)
 	}
 
-	results, isNamespace, err := readKey(testPathDirectory)
+	entry, err := readKey(testPathDirectory)
 	if err != nil {
 		t.Error(err)
 	}
-	if !isNamespace {
+	if !entry.isNamespace {
 		t.Error("Is not namespaced value, but should be.")
 	}
-	if len(results) != 2 {
-		t.Errorf("Too many/few results given (%+v).", results)
+	if len(entry.data) != 2 {
+		t.Errorf("Too many/few results given (%+v).", entry.data)
 	}
 }
 

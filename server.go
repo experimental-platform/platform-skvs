@@ -38,14 +38,13 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 		switch r.Method {
 		case "GET":
-			var values []string
-			var isNamespace bool
-			values, isNamespace, err = readKey(key_path)
+			var entry Entry
+			entry, err = readKey(key_path)
 			if err == nil {
-				if isNamespace {
-					keys = values
+				if entry.isNamespace {
+					keys = entry.data
 				} else {
-					value = values[0]
+					value = entry.data[0]
 				}
 			}
 		case "DELETE":
@@ -81,7 +80,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func readKey(path string) ([]string, bool, error) {
+func readKey(path string) (Entry, error) {
 	var result []string
 	var err error
 
@@ -104,7 +103,7 @@ func readKey(path string) ([]string, bool, error) {
 			}
 		}
 	}
-	return result, isNamespace, err
+	return Entry{data: result, isNamespace: isNamespace}, err
 }
 
 func putKey(path string, value string) error {
