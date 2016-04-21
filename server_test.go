@@ -151,8 +151,160 @@ func TestHTTPGetKey(t *testing.T) {
 	}
 }
 
+func TestCacheUpdatedOnWrite(t *testing.T) {
+	cleanData()
+	testPath := expandPath("foo/bar/zero")
+	testContent1 := "oldContent"
+	testContent2 := "newContent"
+
+	err := putKey(testPath, testContent1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	entry, err := readKey(testPath)
+	if err != nil {
+		t.Error(err)
+	}
+	if entry.isNamespace {
+		t.Error("Is namespaced value, but should not be.")
+	}
+	if len(entry.data) != 1 || entry.data[0] != testContent1 {
+		t.Errorf("Too many results given (%+v) or first result has not expected content (%s).", entry.data, testContent1)
+	}
+
+	err = putKey(testPath, testContent2)
+	if err != nil {
+		t.Error(err)
+	}
+
+	entry, err = readKey(testPath)
+	if err != nil {
+		t.Error(err)
+	}
+	if entry.isNamespace {
+		t.Error("Is namespaced value, but should not be.")
+	}
+	if len(entry.data) != 1 || entry.data[0] != testContent2 {
+		t.Errorf("Too many results given (%+v) or first result has not expected content (%s).", entry.data, testContent2)
+	}
+}
+
+func TestParentCacheUpdated(t *testing.T) {
+	cleanData()
+	testPath1 := expandPath("foo/bar/zero")
+	testPath2 := expandPath("foo/bar/one")
+	testPathParent := expandPath("foo/bar")
+	testContent := "foobar"
+
+	err := putKey(testPath1, testContent)
+	if err != nil {
+		t.Error(err)
+	}
+
+	entry, err := readKey(testPathParent)
+	if err != nil {
+		t.Error(err)
+	}
+	if !entry.isNamespace {
+		t.Error("Is not a namespaced value, but should be.")
+	}
+	if len(entry.data) != 1 {
+		t.Errorf("Should have 1 result, got %v.", len(entry.data))
+	}
+
+	err = putKey(testPath2, testContent)
+	if err != nil {
+		t.Error(err)
+	}
+
+	entry, err = readKey(testPathParent)
+	if err != nil {
+		t.Error(err)
+	}
+	if !entry.isNamespace {
+		t.Error("Is not a namespaced value, but should be.")
+	}
+	if len(entry.data) != 2 {
+		t.Errorf("Should have 2 results, got %v.", len(entry.data))
+	}
+}
+
+func TestRootParentCacheUpdated(t *testing.T) {
+	cleanData()
+	testPath1 := expandPath("zero")
+	testPath2 := expandPath("one")
+	testPathParent := expandPath("/")
+	testContent := "foobar"
+
+	err := putKey(testPath1, testContent)
+	if err != nil {
+		t.Error(err)
+	}
+
+	entry, err := readKey(testPathParent)
+	if err != nil {
+		t.Error(err)
+	}
+	if !entry.isNamespace {
+		t.Error("Is not a namespaced value, but should be.")
+	}
+	if len(entry.data) != 1 {
+		t.Errorf("Should have 1 result, got %v.", len(entry.data))
+	}
+
+	err = putKey(testPath2, testContent)
+	if err != nil {
+		t.Error(err)
+	}
+
+	entry, err = readKey(testPathParent)
+	if err != nil {
+		t.Error(err)
+	}
+	if !entry.isNamespace {
+		t.Error("Is not a namespaced value, but should be.")
+	}
+	if len(entry.data) != 2 {
+		t.Errorf("Should have 2 results, got %v.", len(entry.data))
+	}
+}
+
+func TestCacheUpdatedOnDelete(t *testing.T) {
+	cleanData()
+	testPath := expandPath("foo/bar/zero")
+	testContent := "testContent"
+
+	err := putKey(testPath, testContent)
+	if err != nil {
+		t.Error(err)
+	}
+
+	entry, err := readKey(testPath)
+	if err != nil {
+		t.Error(err)
+	}
+	if entry.isNamespace {
+		t.Error("Is namespaced value, but should not be.")
+	}
+	if len(entry.data) != 1 || entry.data[0] != testContent {
+		t.Errorf("Too many results given (%+v) or first result has not expected content (%s).", entry.data, testContent)
+	}
+
+	err = deleteKey(testPath)
+	if err != nil {
+		t.Error("Failed to remove key.")
+	}
+
+	entry, err = readKey(testPath)
+	if err == nil {
+		t.Errorf("Entry '%+v' at '%v' should not exist, but does.", entry, testPath)
+	}
+}
+
 func cleanData() {
 	os.RemoveAll(opts.DataPath)
+	skvsCache = make(map[string]Entry)
 }
 
 func TestMain(m *testing.M) {

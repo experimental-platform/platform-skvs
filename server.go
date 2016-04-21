@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type ResponseData struct {
@@ -23,6 +24,14 @@ type ResponseData struct {
 	Keys        []string `json:"keys,omitempty"`  // need better decision here
 	Error       string   `json:"error,omitempty"` // need better decision here
 }
+
+type Entry struct {
+	data        []string
+	isNamespace bool
+}
+
+var skvsCache map[string]Entry = make(map[string]Entry)
+var skvsCacheMutex sync.Mutex
 
 var validKey = regexp.MustCompile(`^[a-zA-Z0-9_\-/:]+$`)
 
@@ -81,6 +90,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func readKey(path string) (Entry, error) {
+	// return from cache if available
+	if cached, ok := skvsCache[path]; ok {
+		return cached, nil
+	}
+
+	// otherwise read from FS
 	var result []string
 	var err error
 
@@ -103,15 +118,39 @@ func readKey(path string) (Entry, error) {
 			}
 		}
 	}
-	return Entry{data: result, isNamespace: isNamespace}, err
+
+	entry := Entry{data: result, isNamespace: isNamespace}
+	if err == nil {
+		// store in cache for future reads
+		skvsCacheMutex.Lock()
+		defer skvsCacheMutex.Unlock()
+		skvsCache[path] = entry
+	}
+
+	return entry, err
 }
 
 func putKey(path string, value string) error {
 	os.MkdirAll(filepath.Dir(path), os.ModePerm)
-	return ioutil.WriteFile(path, []byte(value), os.ModePerm)
+	err := ioutil.WriteFile(path, []byte(value), os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	// update cache
+	skvsCacheMutex.Lock()
+	defer skvsCacheMutex.Unlock()
+	invalidateCache(path)
+
+	skvsCache[path] = Entry{data: []string{value}, isNamespace: false}
+
+	return nil
 }
 
 func deleteKey(path string) error {
+	skvsCacheMutex.Lock()
+	defer skvsCacheMutex.Unlock()
+	invalidateCache(path)
 	return os.Remove(path)
 }
 
@@ -123,6 +162,18 @@ func expandPath(key string) string {
 func fileExists(filename string) error {
 	_, err := os.Stat(filename)
 	return err
+}
+
+// removes cache entries for the given path and all its parents
+func invalidateCache(path string) {
+	for {
+		delete(skvsCache, path)
+		if path == "/" {
+			break
+		} else {
+			path = filepath.Dir(path)
+		}
+	}
 }
 
 // Return nil if filename is a directory, else non-nil value
