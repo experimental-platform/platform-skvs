@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestExpandPath(t *testing.T) {
@@ -74,15 +75,15 @@ func TestReadKeyWithoutNamespace(t *testing.T) {
 		t.Errorf("Could not write file '%s' with content '%s'\n", testPath, testContent)
 	}
 
-	results, isNamespace, err := readKey(testPath)
+	entry, err := readKey(testPath)
 	if err != nil {
 		t.Error(err)
 	}
-	if isNamespace {
+	if entry.isNamespace {
 		t.Error("Is namespaced value, but should not be.")
 	}
-	if len(results) != 1 || results[0] != testContent {
-		t.Errorf("Too many results given (%+v) or first result has not expected content (%s).", results, testContent)
+	if len(entry.data) != 1 || entry.data[0] != testContent {
+		t.Errorf("Too many results given (%+v) or first result has not expected content (%s).", entry.data, testContent)
 	}
 }
 
@@ -102,15 +103,15 @@ func TestReadKeyWithNamespace(t *testing.T) {
 		t.Errorf("Could not write file '%s' with content '%s'\n", testPathFile2, testContent)
 	}
 
-	results, isNamespace, err := readKey(testPathDirectory)
+	entry, err := readKey(testPathDirectory)
 	if err != nil {
 		t.Error(err)
 	}
-	if !isNamespace {
+	if !entry.isNamespace {
 		t.Error("Is not namespaced value, but should be.")
 	}
-	if len(results) != 2 {
-		t.Errorf("Too many/few results given (%+v).", results)
+	if len(entry.data) != 2 {
+		t.Errorf("Too many/few results given (%+v).", entry.data)
 	}
 }
 
@@ -151,8 +152,236 @@ func TestHTTPGetKey(t *testing.T) {
 	}
 }
 
+func TestCacheUpdatedOnWrite(t *testing.T) {
+	cleanData()
+	testPath := expandPath("foo/bar/zero")
+	testContent1 := "oldContent"
+	testContent2 := "newContent"
+
+	err := putKey(testPath, testContent1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	entry, err := readKey(testPath)
+	if err != nil {
+		t.Error(err)
+	}
+	if entry.isNamespace {
+		t.Error("Is namespaced value, but should not be.")
+	}
+	if len(entry.data) != 1 || entry.data[0] != testContent1 {
+		t.Errorf("Too many results given (%+v) or first result has not expected content (%s).", entry.data, testContent1)
+	}
+
+	err = putKey(testPath, testContent2)
+	if err != nil {
+		t.Error(err)
+	}
+
+	entry, err = readKey(testPath)
+	if err != nil {
+		t.Error(err)
+	}
+	if entry.isNamespace {
+		t.Error("Is namespaced value, but should not be.")
+	}
+	if len(entry.data) != 1 || entry.data[0] != testContent2 {
+		t.Errorf("Too many results given (%+v) or first result has not expected content (%s).", entry.data, testContent2)
+	}
+}
+
+func TestParentCacheUpdated(t *testing.T) {
+	cleanData()
+	testPath1 := expandPath("foo/bar/zero")
+	testPath2 := expandPath("foo/bar/one")
+	testPathParent := expandPath("foo/bar")
+	testContent := "foobar"
+
+	err := putKey(testPath1, testContent)
+	if err != nil {
+		t.Error(err)
+	}
+
+	entry, err := readKey(testPathParent)
+	if err != nil {
+		t.Error(err)
+	}
+	if !entry.isNamespace {
+		t.Error("Is not a namespaced value, but should be.")
+	}
+	if len(entry.data) != 1 {
+		t.Errorf("Should have 1 result, got %v.", len(entry.data))
+	}
+
+	err = putKey(testPath2, testContent)
+	if err != nil {
+		t.Error(err)
+	}
+
+	entry, err = readKey(testPathParent)
+	if err != nil {
+		t.Error(err)
+	}
+	if !entry.isNamespace {
+		t.Error("Is not a namespaced value, but should be.")
+	}
+	if len(entry.data) != 2 {
+		t.Errorf("Should have 2 results, got %v.", len(entry.data))
+	}
+}
+
+func TestParentCacheUpdated2(t *testing.T) {
+	cleanData()
+	testPath1 := expandPath("foo/bar/zero")
+	testPath2 := expandPath("foo/bar/one")
+	testPathParent := expandPath("foo/bar")
+	testContent := "foobar"
+
+	err := putKey(testPath1, testContent)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = putKey(testPath2, testContent)
+	if err != nil {
+		t.Error(err)
+	}
+
+	entry, err := readKey(testPathParent)
+	if err != nil {
+		t.Error(err)
+	}
+	if !entry.isNamespace {
+		t.Error("Is not a namespaced value, but should be.")
+	}
+	if len(entry.data) != 2 {
+		t.Errorf("Should have 2 result, got %v.", len(entry.data))
+	}
+
+	deleteKey(testPath1)
+
+	entry, err = readKey(testPathParent)
+	if err != nil {
+		t.Error(err)
+	}
+	if !entry.isNamespace {
+		t.Error("Is not a namespaced value, but should be.")
+	}
+	if len(entry.data) != 1 {
+		t.Errorf("Should have 1 results, got %v.", len(entry.data))
+	}
+}
+
+func TestRootParentCacheUpdated(t *testing.T) {
+	cleanData()
+	testPath1 := expandPath("zero")
+	testPath2 := expandPath("one")
+	testPathParent := expandPath("/")
+	testContent := "foobar"
+
+	err := putKey(testPath1, testContent)
+	if err != nil {
+		t.Error(err)
+	}
+
+	entry, err := readKey(testPathParent)
+	if err != nil {
+		t.Error(err)
+	}
+	if !entry.isNamespace {
+		t.Error("Is not a namespaced value, but should be.")
+	}
+	if len(entry.data) != 1 {
+		t.Errorf("Should have 1 result, got %v.", len(entry.data))
+	}
+
+	err = putKey(testPath2, testContent)
+	if err != nil {
+		t.Error(err)
+	}
+
+	entry, err = readKey(testPathParent)
+	if err != nil {
+		t.Error(err)
+	}
+	if !entry.isNamespace {
+		t.Error("Is not a namespaced value, but should be.")
+	}
+	if len(entry.data) != 2 {
+		t.Errorf("Should have 2 results, got %v.", len(entry.data))
+	}
+}
+
+func TestCacheUpdatedOnDelete(t *testing.T) {
+	cleanData()
+	testPath := expandPath("foo/bar/zero")
+	testContent := "testContent"
+
+	err := putKey(testPath, testContent)
+	if err != nil {
+		t.Error(err)
+	}
+
+	entry, err := readKey(testPath)
+	if err != nil {
+		t.Error(err)
+	}
+	if entry.isNamespace {
+		t.Error("Is namespaced value, but should not be.")
+	}
+	if len(entry.data) != 1 || entry.data[0] != testContent {
+		t.Errorf("Too many results given (%+v) or first result has not expected content (%s).", entry.data, testContent)
+	}
+
+	err = deleteKey(testPath)
+	if err != nil {
+		t.Error("Failed to remove key.")
+	}
+
+	entry, err = readKey(testPath)
+	if err == nil {
+		t.Errorf("Entry '%+v' at '%v' should not exist, but does.", entry, testPath)
+	}
+}
+
+func TestPutKeyCachedWriteUpdatedOnDisk(t *testing.T) {
+	cleanData()
+	testPathFile := expandPath("foo/bar")
+	testContent := "foobar"
+	var mtime time.Time
+
+	err := putKey(testPathFile, testContent)
+	if err != nil {
+		t.Fail()
+	}
+
+	if fileInfo, err := os.Stat(testPathFile); err != nil {
+		t.Fail()
+	} else {
+		mtime = fileInfo.ModTime()
+	}
+
+	time.Sleep(time.Millisecond * 1200)
+
+	err = putKey(testPathFile, testContent)
+	if err != nil {
+		t.Fail()
+	}
+
+	if fileInfo, err := os.Stat(testPathFile); err != nil {
+		t.Fail()
+	} else {
+		newMTime := fileInfo.ModTime()
+		if newMTime != mtime {
+			t.Errorf("File's mtime unncessarily changed from %v to %v.", mtime, newMTime)
+		}
+	}
+}
+
 func cleanData() {
 	os.RemoveAll(opts.DataPath)
+	skvsCache = make(map[string]Entry)
 }
 
 func TestMain(m *testing.M) {

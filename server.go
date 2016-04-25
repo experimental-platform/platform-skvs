@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type ResponseData struct {
@@ -23,6 +24,14 @@ type ResponseData struct {
 	Keys        []string `json:"keys,omitempty"`  // need better decision here
 	Error       string   `json:"error,omitempty"` // need better decision here
 }
+
+type Entry struct {
+	data        []string
+	isNamespace bool
+}
+
+var skvsCache map[string]Entry = make(map[string]Entry)
+var skvsCacheMutex sync.Mutex
 
 var validKey = regexp.MustCompile(`^[a-zA-Z0-9_\-/:]+$`)
 
@@ -38,14 +47,13 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 		switch r.Method {
 		case "GET":
-			var values []string
-			var isNamespace bool
-			values, isNamespace, err = readKey(key_path)
+			var entry Entry
+			entry, err = readKey(key_path)
 			if err == nil {
-				if isNamespace {
-					keys = values
+				if entry.isNamespace {
+					keys = entry.data
 				} else {
-					value = values[0]
+					value = entry.data[0]
 				}
 			}
 		case "DELETE":
@@ -81,7 +89,13 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func readKey(path string) ([]string, bool, error) {
+func readKey(path string) (Entry, error) {
+	// return from cache if available
+	if cached, ok := skvsCache[path]; ok {
+		return cached, nil
+	}
+
+	// otherwise read from FS
 	var result []string
 	var err error
 
@@ -104,15 +118,44 @@ func readKey(path string) ([]string, bool, error) {
 			}
 		}
 	}
-	return result, isNamespace, err
+
+	entry := Entry{data: result, isNamespace: isNamespace}
+	if err == nil {
+		// store in cache for future reads
+		skvsCacheMutex.Lock()
+		defer skvsCacheMutex.Unlock()
+		skvsCache[path] = entry
+	}
+
+	return entry, err
 }
 
 func putKey(path string, value string) error {
+	// if cache already contains identical data, then do nothing
+	if v, ok := skvsCache[path]; ok && len(v.data) == 1 && v.data[0] == value {
+		return nil
+	}
+
 	os.MkdirAll(filepath.Dir(path), os.ModePerm)
-	return ioutil.WriteFile(path, []byte(value), os.ModePerm)
+	err := ioutil.WriteFile(path, []byte(value), os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	// update cache
+	skvsCacheMutex.Lock()
+	defer skvsCacheMutex.Unlock()
+	invalidateCache(path)
+
+	skvsCache[path] = Entry{data: []string{value}, isNamespace: false}
+
+	return nil
 }
 
 func deleteKey(path string) error {
+	skvsCacheMutex.Lock()
+	defer skvsCacheMutex.Unlock()
+	invalidateCache(path)
 	return os.Remove(path)
 }
 
@@ -124,6 +167,18 @@ func expandPath(key string) string {
 func fileExists(filename string) error {
 	_, err := os.Stat(filename)
 	return err
+}
+
+// removes cache entries for the given path and all its parents
+func invalidateCache(path string) {
+	for {
+		delete(skvsCache, path)
+		if path == "/" {
+			break
+		} else {
+			path = filepath.Dir(path)
+		}
+	}
 }
 
 // Return nil if filename is a directory, else non-nil value
