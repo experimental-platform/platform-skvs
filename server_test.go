@@ -231,6 +231,48 @@ func TestParentCacheUpdated(t *testing.T) {
 	}
 }
 
+func TestParentCacheUpdated2(t *testing.T) {
+	cleanData()
+	testPath1 := expandPath("foo/bar/zero")
+	testPath2 := expandPath("foo/bar/one")
+	testPathParent := expandPath("foo/bar")
+	testContent := "foobar"
+
+	err := putKey(testPath1, testContent)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = putKey(testPath2, testContent)
+	if err != nil {
+		t.Error(err)
+	}
+
+	entry, err := readKey(testPathParent)
+	if err != nil {
+		t.Error(err)
+	}
+	if !entry.isNamespace {
+		t.Error("Is not a namespaced value, but should be.")
+	}
+	if len(entry.data) != 2 {
+		t.Errorf("Should have 2 result, got %v.", len(entry.data))
+	}
+
+	deleteKey(testPath1)
+
+	entry, err = readKey(testPathParent)
+	if err != nil {
+		t.Error(err)
+	}
+	if !entry.isNamespace {
+		t.Error("Is not a namespaced value, but should be.")
+	}
+	if len(entry.data) != 1 {
+		t.Errorf("Should have 1 results, got %v.", len(entry.data))
+	}
+}
+
 func TestRootParentCacheUpdated(t *testing.T) {
 	cleanData()
 	testPath1 := expandPath("zero")
