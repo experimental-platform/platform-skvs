@@ -244,6 +244,11 @@ func main() {
 		}
 	}
 
+	fmt.Println("PATHS EXEMPT FROM CACHE:")
+	for _, p := range opts.CacheExempt {
+		fmt.Printf(" - %s\n", p)
+	}
+
 	fmt.Printf("HOOKS: %+v\n", opts.WebHookUrls)
 
 	deviceMux := http.NewServeMux()
