@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -22,7 +23,7 @@ func TestPutKeyWithoutNamespace(t *testing.T) {
 	cleanData()
 	testPath := expandPath("foobar")
 	testContent := "foobar"
-	err := putKey(testPath, testContent)
+	err := putKey(testPath, false, testContent)
 	if err != nil {
 		t.Fail()
 	}
@@ -36,7 +37,7 @@ func TestPutKeyWithNamespace(t *testing.T) {
 	testPathDirectory := expandPath("foo/")
 	testPathFile := expandPath("foo/bar")
 	testContent := "foobar"
-	err := putKey(testPathFile, testContent)
+	err := putKey(testPathFile, false, testContent)
 	if err != nil {
 		t.Fail()
 	}
@@ -75,7 +76,7 @@ func TestReadKeyWithoutNamespace(t *testing.T) {
 		t.Errorf("Could not write file '%s' with content '%s'\n", testPath, testContent)
 	}
 
-	entry, err := readKey(testPath)
+	entry, err := readKey(testPath, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -103,7 +104,7 @@ func TestReadKeyWithNamespace(t *testing.T) {
 		t.Errorf("Could not write file '%s' with content '%s'\n", testPathFile2, testContent)
 	}
 
-	entry, err := readKey(testPathDirectory)
+	entry, err := readKey(testPathDirectory, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -158,12 +159,12 @@ func TestCacheUpdatedOnWrite(t *testing.T) {
 	testContent1 := "oldContent"
 	testContent2 := "newContent"
 
-	err := putKey(testPath, testContent1)
+	err := putKey(testPath, false, testContent1)
 	if err != nil {
 		t.Error(err)
 	}
 
-	entry, err := readKey(testPath)
+	entry, err := readKey(testPath, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -174,12 +175,12 @@ func TestCacheUpdatedOnWrite(t *testing.T) {
 		t.Errorf("Too many results given (%+v) or first result has not expected content (%s).", entry.data, testContent1)
 	}
 
-	err = putKey(testPath, testContent2)
+	err = putKey(testPath, false, testContent2)
 	if err != nil {
 		t.Error(err)
 	}
 
-	entry, err = readKey(testPath)
+	entry, err = readKey(testPath, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -198,12 +199,12 @@ func TestParentCacheUpdated(t *testing.T) {
 	testPathParent := expandPath("foo/bar")
 	testContent := "foobar"
 
-	err := putKey(testPath1, testContent)
+	err := putKey(testPath1, false, testContent)
 	if err != nil {
 		t.Error(err)
 	}
 
-	entry, err := readKey(testPathParent)
+	entry, err := readKey(testPathParent, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -214,12 +215,12 @@ func TestParentCacheUpdated(t *testing.T) {
 		t.Errorf("Should have 1 result, got %v.", len(entry.data))
 	}
 
-	err = putKey(testPath2, testContent)
+	err = putKey(testPath2, false, testContent)
 	if err != nil {
 		t.Error(err)
 	}
 
-	entry, err = readKey(testPathParent)
+	entry, err = readKey(testPathParent, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -238,17 +239,17 @@ func TestParentCacheUpdated2(t *testing.T) {
 	testPathParent := expandPath("foo/bar")
 	testContent := "foobar"
 
-	err := putKey(testPath1, testContent)
+	err := putKey(testPath1, false, testContent)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = putKey(testPath2, testContent)
+	err = putKey(testPath2, false, testContent)
 	if err != nil {
 		t.Error(err)
 	}
 
-	entry, err := readKey(testPathParent)
+	entry, err := readKey(testPathParent, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -261,7 +262,7 @@ func TestParentCacheUpdated2(t *testing.T) {
 
 	deleteKey(testPath1)
 
-	entry, err = readKey(testPathParent)
+	entry, err = readKey(testPathParent, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -280,12 +281,12 @@ func TestRootParentCacheUpdated(t *testing.T) {
 	testPathParent := expandPath("/")
 	testContent := "foobar"
 
-	err := putKey(testPath1, testContent)
+	err := putKey(testPath1, false, testContent)
 	if err != nil {
 		t.Error(err)
 	}
 
-	entry, err := readKey(testPathParent)
+	entry, err := readKey(testPathParent, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -296,12 +297,12 @@ func TestRootParentCacheUpdated(t *testing.T) {
 		t.Errorf("Should have 1 result, got %v.", len(entry.data))
 	}
 
-	err = putKey(testPath2, testContent)
+	err = putKey(testPath2, false, testContent)
 	if err != nil {
 		t.Error(err)
 	}
 
-	entry, err = readKey(testPathParent)
+	entry, err = readKey(testPathParent, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -318,12 +319,12 @@ func TestCacheUpdatedOnDelete(t *testing.T) {
 	testPath := expandPath("foo/bar/zero")
 	testContent := "testContent"
 
-	err := putKey(testPath, testContent)
+	err := putKey(testPath, false, testContent)
 	if err != nil {
 		t.Error(err)
 	}
 
-	entry, err := readKey(testPath)
+	entry, err := readKey(testPath, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -339,7 +340,7 @@ func TestCacheUpdatedOnDelete(t *testing.T) {
 		t.Error("Failed to remove key.")
 	}
 
-	entry, err = readKey(testPath)
+	entry, err = readKey(testPath, false)
 	if err == nil {
 		t.Errorf("Entry '%+v' at '%v' should not exist, but does.", entry, testPath)
 	}
@@ -351,7 +352,7 @@ func TestPutKeyCachedWriteUpdatedOnDisk(t *testing.T) {
 	testContent := "foobar"
 	var mtime time.Time
 
-	err := putKey(testPathFile, testContent)
+	err := putKey(testPathFile, false, testContent)
 	if err != nil {
 		t.Fail()
 	}
@@ -364,7 +365,7 @@ func TestPutKeyCachedWriteUpdatedOnDisk(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 1200)
 
-	err = putKey(testPathFile, testContent)
+	err = putKey(testPathFile, false, testContent)
 	if err != nil {
 		t.Fail()
 	}
@@ -379,9 +380,110 @@ func TestPutKeyCachedWriteUpdatedOnDisk(t *testing.T) {
 	}
 }
 
+func TestExemptPutKeyCachedWriteUpdatedOnDisk(t *testing.T) {
+	cleanData()
+	testPathFile := expandPath("foo/bar")
+	testContent := "foobar"
+	exemptFromCache := true
+	var mtime time.Time
+
+	err := putKey(testPathFile, exemptFromCache, testContent)
+	if err != nil {
+		t.Fail()
+	}
+
+	if fileInfo, err := os.Stat(testPathFile); err != nil {
+		t.Fail()
+	} else {
+		mtime = fileInfo.ModTime()
+	}
+
+	time.Sleep(time.Millisecond * 1200)
+
+	err = putKey(testPathFile, exemptFromCache, testContent)
+	if err != nil {
+		t.Fail()
+	}
+
+	if fileInfo, err := os.Stat(testPathFile); err != nil {
+		t.Fail()
+	} else {
+		newMTime := fileInfo.ModTime()
+		if newMTime == mtime {
+			t.Errorf("File's mtime did not change.")
+		}
+	}
+}
+
+func TestExemptReadKeyChangedOnDisk1(t *testing.T) {
+	cleanData()
+	testPathFile := expandPath("foo/bar")
+	testContent1 := "foo"
+	testContent2 := "bar"
+
+	if err := os.MkdirAll(filepath.Dir(testPathFile), os.ModePerm); err != nil {
+		t.Errorf("Could not create key '%s'\n", testPathFile)
+	}
+	if err := ioutil.WriteFile(testPathFile, []byte(testContent1), os.ModePerm); err != nil {
+		t.Errorf("Could not write file '%s' with content '%s'\n", testPathFile, testContent1)
+	}
+
+	data1, err := readKey(testPathFile, false)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if err := ioutil.WriteFile(testPathFile, []byte(testContent2), os.ModePerm); err != nil {
+		t.Errorf("Could not write file '%s' with content '%s'\n", testPathFile, testContent1)
+	}
+
+	data2, err := readKey(testPathFile, false)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !reflect.DeepEqual(data1, data2) {
+		t.Errorf("Silent change of the contents of file '%s' from '%s' to '%s' should have NOT been noticed\n", testPathFile, testContent1, testContent2)
+	}
+}
+
+func TestExemptReadKeyChangedOnDisk2(t *testing.T) {
+	cleanData()
+	testPathFile := expandPath("foo/bar")
+	exemptFromCache := true
+	testContent1 := "foo"
+	testContent2 := "bar"
+
+	if err := os.MkdirAll(filepath.Dir(testPathFile), os.ModePerm); err != nil {
+		t.Errorf("Could not create key '%s'\n", testPathFile)
+	}
+	if err := ioutil.WriteFile(testPathFile, []byte(testContent1), os.ModePerm); err != nil {
+		t.Errorf("Could not write file '%s' with content '%s'\n", testPathFile, testContent1)
+	}
+
+	data1, err := readKey(testPathFile, exemptFromCache)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if err := ioutil.WriteFile(testPathFile, []byte(testContent2), os.ModePerm); err != nil {
+		t.Errorf("Could not write file '%s' with content '%s'\n", testPathFile, testContent1)
+	}
+
+	data2, err := readKey(testPathFile, exemptFromCache)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if reflect.DeepEqual(data1, data2) {
+		t.Errorf("Silent change of the contents of file '%s' from '%s' to '%s' should have been noticed\n", testPathFile, testContent1, testContent2)
+	}
+}
+
 func cleanData() {
 	os.RemoveAll(opts.DataPath)
 	skvsCache = make(map[string]Entry)
+	opts.CacheExempt = []string{}
 }
 
 func TestMain(m *testing.M) {

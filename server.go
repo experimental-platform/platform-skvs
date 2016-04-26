@@ -41,6 +41,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path[1:]
 	if validKey.MatchString(key) {
 		key_path := expandPath(key)
+		exempt := isExemptFromCache(key)
 		value := r.PostForm.Get("value")
 		var keys []string
 		var err error
@@ -48,7 +49,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case "GET":
 			var entry Entry
-			entry, err = readKey(key_path)
+			entry, err = readKey(key_path, exempt)
 			if err == nil {
 				if entry.isNamespace {
 					keys = entry.data
@@ -59,7 +60,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		case "DELETE":
 			err = deleteKey(key_path)
 		case "PUT", "POST":
-			err = putKey(key_path, value)
+			err = putKey(key_path, exempt, value)
 		}
 
 		if err == nil {
@@ -89,7 +90,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func readKey(path string) (Entry, error) {
+func readKey(path string, exemptFromCache bool) (Entry, error) {
 	// return from cache if available
 	if cached, ok := skvsCache[path]; ok {
 		return cached, nil
@@ -120,7 +121,7 @@ func readKey(path string) (Entry, error) {
 	}
 
 	entry := Entry{data: result, isNamespace: isNamespace}
-	if err == nil {
+	if err == nil && !exemptFromCache {
 		// store in cache for future reads
 		skvsCacheMutex.Lock()
 		defer skvsCacheMutex.Unlock()
@@ -130,9 +131,9 @@ func readKey(path string) (Entry, error) {
 	return entry, err
 }
 
-func putKey(path string, value string) error {
+func putKey(path string, exemptFromCache bool, value string) error {
 	// if cache already contains identical data, then do nothing
-	if v, ok := skvsCache[path]; ok && len(v.data) == 1 && v.data[0] == value {
+	if v, ok := skvsCache[path]; ok && !exemptFromCache && len(v.data) == 1 && v.data[0] == value {
 		return nil
 	}
 
@@ -142,12 +143,14 @@ func putKey(path string, value string) error {
 		return err
 	}
 
-	// update cache
-	skvsCacheMutex.Lock()
-	defer skvsCacheMutex.Unlock()
-	invalidateCache(path)
+	if !exemptFromCache {
+		// update cache
+		skvsCacheMutex.Lock()
+		defer skvsCacheMutex.Unlock()
+		invalidateCache(path)
 
-	skvsCache[path] = Entry{data: []string{value}, isNamespace: false}
+		skvsCache[path] = Entry{data: []string{value}, isNamespace: false}
+	}
 
 	return nil
 }
@@ -217,6 +220,17 @@ var opts struct {
 	DataPath    string   `short:"d" long:"data-path" default:"./data" description:"Directory where files will be stored."`
 	Port        int      `short:"p" long:"port" default:"8080" description:"Port where server is listening for requests."`
 	WebHookUrls []string `short:"w" long:"webhook-url" description:"WebHook-Urls."`
+	CacheExempt []string `short:"e" long:"exempt-from-cache" description:"Paths which shall not use cache."`
+}
+
+func isExemptFromCache(path string) bool {
+	for _, exempt := range opts.CacheExempt {
+		if exempt == path {
+			return true
+		}
+	}
+
+	return false
 }
 
 func main() {
