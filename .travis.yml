@@ -2,6 +2,6 @@ sudo: false
 services:
   - docker
 install:
-  - curl -L https://raw.githubusercontent.com/experimental-platform/build-scripts/kd-bump-glide/go-build.sh | bash
+  - curl -L https://raw.githubusercontent.com/experimental-platform/build-scripts/kd-glide-lock-install/go-build.sh | bash
 script:
   - curl -L https://raw.githubusercontent.com/experimental-platform/build-scripts/master/buildimg.sh | bash
