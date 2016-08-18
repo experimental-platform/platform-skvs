@@ -173,8 +173,15 @@ func fileExists(filename string) error {
 	return err
 }
 
-// removes cache entries for the given path and all its parents
+// removes cache entries for the given path and all its parents and/or children
 func invalidateCache(path string) {
+	key, _ := readKey(path, true)
+	if key.isNamespace {
+		for _, child := range key.data {
+			invalidateCache(path + "/" + child)
+		}
+	}
+
 	for {
 		delete(skvsCache, path)
 		if path == "/" {
