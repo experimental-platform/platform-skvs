@@ -160,7 +160,7 @@ func deleteKey(path string) error {
 	skvsCacheMutex.Lock()
 	defer skvsCacheMutex.Unlock()
 	invalidateCache(path)
-	return os.Remove(path)
+	return os.RemoveAll(path)
 }
 
 func expandPath(key string) string {
