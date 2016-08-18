@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	flags "github.com/jessevdk/go-flags"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -14,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	flags "github.com/jessevdk/go-flags"
 )
 
 type ResponseData struct {
