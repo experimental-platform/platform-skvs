@@ -482,6 +482,32 @@ func TestExemptReadKeyChangedOnDisk2(t *testing.T) {
 	}
 }
 
+func TestRemoveRecursive(t *testing.T) {
+	cleanData()
+	testPathFile := expandPath("foo/bar")
+	testPathDir := expandPath("foo")
+	exemptFromCache := false
+	err := putKey(testPathFile, exemptFromCache, "whatever")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = readKey(testPathFile, false)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = deleteKey(testPathDir)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = readKey(testPathFile, false)
+	if err == nil {
+		t.Error("Key should not exist, but does")
+	}
+}
+
 func cleanData() {
 	os.RemoveAll(opts.DataPath)
 	skvsCache = make(map[string]Entry)
