@@ -126,15 +126,15 @@ func TestHTTPGetKey(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected Code %i, got %i", http.StatusNotFound, w.Code)
+		t.Errorf("Expected Code %d, got %d", http.StatusNotFound, w.Code)
 	}
 
 	testFilePath := expandPath("foobar")
 	testContent := "foobar"
-	if err := os.MkdirAll(filepath.Dir(testFilePath), os.ModePerm); err != nil {
+	if err = os.MkdirAll(filepath.Dir(testFilePath), os.ModePerm); err != nil {
 		t.Errorf("Could not create directory '%s'\n", testFilePath)
 	}
-	if err := ioutil.WriteFile(testFilePath, []byte(testContent), os.ModePerm); err != nil {
+	if err = ioutil.WriteFile(testFilePath, []byte(testContent), os.ModePerm); err != nil {
 		t.Errorf("Could not write file '%s' with content '%s' (%v)\n", testFilePath, testContent, err)
 	}
 
@@ -145,7 +145,7 @@ func TestHTTPGetKey(t *testing.T) {
 	w = httptest.NewRecorder()
 	handler(w, req)
 	if w.Code != http.StatusOK {
-		t.Errorf("Expected Code %i, got %i", http.StatusNotFound, w.Code)
+		t.Errorf("Expected Code %d, got %d", http.StatusNotFound, w.Code)
 	}
 	expectedBody := "{\"key\":\"foobar\",\"namespace\":false,\"value\":\"foobar\"}\n"
 	if w.Body.String() != expectedBody {
@@ -357,8 +357,9 @@ func TestPutKeyCachedWriteUpdatedOnDisk(t *testing.T) {
 		t.Fail()
 	}
 
-	if fileInfo, err := os.Stat(testPathFile); err != nil {
-		t.Fail()
+	fileInfo, err := os.Stat(testPathFile)
+	if err != nil {
+		t.Fatal(err)
 	} else {
 		mtime = fileInfo.ModTime()
 	}
@@ -392,8 +393,9 @@ func TestExemptPutKeyCachedWriteUpdatedOnDisk(t *testing.T) {
 		t.Fail()
 	}
 
-	if fileInfo, err := os.Stat(testPathFile); err != nil {
-		t.Fail()
+	fileInfo, err := os.Stat(testPathFile)
+	if err != nil {
+		t.Fatal(err)
 	} else {
 		mtime = fileInfo.ModTime()
 	}
@@ -433,7 +435,7 @@ func TestExemptReadKeyChangedOnDisk1(t *testing.T) {
 		t.Error(err)
 	}
 
-	if err := ioutil.WriteFile(testPathFile, []byte(testContent2), os.ModePerm); err != nil {
+	if err = ioutil.WriteFile(testPathFile, []byte(testContent2), os.ModePerm); err != nil {
 		t.Errorf("Could not write file '%s' with content '%s'\n", testPathFile, testContent1)
 	}
 
@@ -466,7 +468,7 @@ func TestExemptReadKeyChangedOnDisk2(t *testing.T) {
 		t.Error(err)
 	}
 
-	if err := ioutil.WriteFile(testPathFile, []byte(testContent2), os.ModePerm); err != nil {
+	if err = ioutil.WriteFile(testPathFile, []byte(testContent2), os.ModePerm); err != nil {
 		t.Errorf("Could not write file '%s' with content '%s'\n", testPathFile, testContent1)
 	}
 
