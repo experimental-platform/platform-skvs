@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	flags "github.com/jessevdk/go-flags"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -14,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	flags "github.com/jessevdk/go-flags"
 )
 
 type ResponseData struct {
@@ -159,7 +160,7 @@ func deleteKey(path string) error {
 	skvsCacheMutex.Lock()
 	defer skvsCacheMutex.Unlock()
 	invalidateCache(path)
-	return os.Remove(path)
+	return os.RemoveAll(path)
 }
 
 func expandPath(key string) string {
@@ -172,8 +173,15 @@ func fileExists(filename string) error {
 	return err
 }
 
-// removes cache entries for the given path and all its parents
+// removes cache entries for the given path and all its parents and/or children
 func invalidateCache(path string) {
+	key, _ := readKey(path, true)
+	if key.isNamespace {
+		for _, child := range key.data {
+			invalidateCache(path + "/" + child)
+		}
+	}
+
 	for {
 		delete(skvsCache, path)
 		if path == "/" {
