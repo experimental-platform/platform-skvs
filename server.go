@@ -92,6 +92,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func readKey(path string, exemptFromCache bool) (Entry, error) {
+	if opts.Debug {
+		fmt.Printf("Getting '%s'\n", path)
+	}
+
 	// return from cache if available
 	if cached, ok := skvsCache[path]; ok {
 		return cached, nil
@@ -133,6 +137,10 @@ func readKey(path string, exemptFromCache bool) (Entry, error) {
 }
 
 func putKey(path string, exemptFromCache bool, value string) error {
+	if opts.Debug {
+		fmt.Printf("Setting '%s'\n", path)
+	}
+
 	// if cache already contains identical data, then do nothing
 	if v, ok := skvsCache[path]; ok && !exemptFromCache && len(v.data) == 1 && v.data[0] == value {
 		return nil
@@ -157,6 +165,9 @@ func putKey(path string, exemptFromCache bool, value string) error {
 }
 
 func deleteKey(path string) error {
+	if opts.Debug {
+		fmt.Printf("Deleting '%s'\n", path)
+	}
 	skvsCacheMutex.Lock()
 	defer skvsCacheMutex.Unlock()
 	invalidateCache(path)
@@ -175,6 +186,10 @@ func fileExists(filename string) error {
 
 // removes cache entries for the given path and all its parents and/or children
 func invalidateCache(path string) {
+	if opts.Debug {
+		fmt.Printf("Invalidating cache for '%s'\n", path)
+	}
+
 	key, _ := readKey(path, true)
 	if key.isNamespace {
 		for _, child := range key.data {
@@ -229,6 +244,7 @@ var opts struct {
 	Port        int      `short:"p" long:"port" default:"8080" description:"Port where server is listening for requests."`
 	WebHookUrls []string `short:"w" long:"webhook-url" description:"WebHook-Urls."`
 	CacheExempt []string `short:"e" long:"exempt-from-cache" description:"Paths which shall not use cache."`
+	Debug       bool     `long:"debug" default:"false" description:"Enable debug mode."`
 }
 
 func isExemptFromCache(path string) bool {
@@ -243,6 +259,13 @@ func isExemptFromCache(path string) bool {
 
 func main() {
 	flags.Parse(&opts)
+
+	if opts.Debug {
+		fmt.Println("Debug mode is ON")
+	} else {
+		fmt.Println("Debug mode is OFF")
+	}
+
 	opts.DataPath, _ = filepath.Abs(opts.DataPath)
 	fmt.Println("DATA_PATH:", opts.DataPath)
 	fmt.Println("PORT:", opts.Port)
