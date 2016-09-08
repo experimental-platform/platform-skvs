@@ -20,7 +20,7 @@ type skvsResponse struct {
 	Value     string `json:"value"`
 }
 
-func getSKVSIP() (string, error) {
+func GetContainerIP(name string) (string, error) {
 	defaultHeaders := map[string]string{"User-Agent": "protonet-skvs_cli"}
 	cli, err := client.NewClient("unix:///var/run/docker.sock", "v1.22", nil, defaultHeaders)
 	if err != nil {
@@ -28,14 +28,14 @@ func getSKVSIP() (string, error) {
 	}
 
 	listOptions := types.ContainerListOptions{Filter: filters.NewArgs()}
-	listOptions.Filter.Add("name", "skvs")
+	listOptions.Filter.Add("name", name)
 
 	containers, err := cli.ContainerList(context.Background(), listOptions)
 	if err != nil {
 		return "", err
 	}
 	if len(containers) == 0 {
-		return "", errors.New("Found no container named 'skvs'")
+		return "", fmt.Errorf("Found no container named '%s'", name)
 	}
 
 	data, err := cli.ContainerInspect(context.Background(), containers[0].ID)
@@ -54,7 +54,7 @@ func getSKVSIP() (string, error) {
 // Get retrieves a value of an SKVS key
 // It does not propely handle namespaces
 func Get(key string) (string, error) {
-	ip, err := getSKVSIP()
+	ip, err := GetContainerIP("skvs")
 	if err != nil {
 		return "", err
 	}
@@ -87,7 +87,7 @@ func Get(key string) (string, error) {
 
 // Set sets a value of a given SKVS key
 func Set(key string, value string) error {
-	ip, err := getSKVSIP()
+	ip, err := GetContainerIP("skvs")
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func Set(key string, value string) error {
 
 // Delete removes an SKVS entry and all its children
 func Delete(key string) error {
-	ip, err := getSKVSIP()
+	ip, err := GetContainerIP("skvs")
 	if err != nil {
 		return err
 	}
