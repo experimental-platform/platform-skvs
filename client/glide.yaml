@@ -9,3 +9,8 @@ import:
 - package: golang.org/x/net
   subpackages:
   - context
+- package: github.com/experimental-platform/platform-utils
+  version: ^1.0.0
+  subpackages:
+  - dockerutil
+
