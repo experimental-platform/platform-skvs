@@ -1,3 +1,4 @@
 data/*
 gin-bin
 skvs
+client/vendor
