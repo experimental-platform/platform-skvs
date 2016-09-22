@@ -9,7 +9,18 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
+
+func expandPath(key string) string {
+	p, err := filepath.Abs("./data-test")
+	if err != nil {
+		panic(err)
+	}
+
+	return filepath.Join(p, key)
+}
 
 func TestExpandPath(t *testing.T) {
 	expected := opts.DataPath + "/foobar"
@@ -124,12 +135,16 @@ func TestHTTPGetKey(t *testing.T) {
 		t.Error(err)
 	}
 	w := httptest.NewRecorder()
+	tmpdir, err := ioutil.TempDir("", "")
+	assert.Nil(t, err)
+	defer os.RemoveAll(tmpdir)
+	handler := NewServerHandler(tmpdir)
 	handler(w, req)
 	if w.Code != http.StatusNotFound {
 		t.Errorf("Expected Code %d, got %d", http.StatusNotFound, w.Code)
 	}
 
-	testFilePath := expandPath("foobar")
+	testFilePath := filepath.Join(tmpdir, "foobar")
 	testContent := "foobar"
 	if err = os.MkdirAll(filepath.Dir(testFilePath), os.ModePerm); err != nil {
 		t.Errorf("Could not create directory '%s'\n", testFilePath)
