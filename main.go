@@ -37,14 +37,6 @@ func main() {
 
 	handler := server.NewServerHandler(opts.DataPath, opts.CacheExempt, opts.WebHookUrls)
 
-	deviceMux := http.NewServeMux()
-	deviceMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		p := r.URL.Path
-		r.URL.Path = "/devices" + p
-		handler(w, r)
-	})
-	go http.ListenAndServe(":82", deviceMux)
-
 	http.HandleFunc("/", handler)
 	http.ListenAndServe(":"+strconv.Itoa(opts.Port), nil)
 }
