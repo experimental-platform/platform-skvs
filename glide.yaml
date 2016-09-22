@@ -1,4 +1,13 @@
-package: main
+package: github.com/experimental-platform/platform-skvs
 import:
-  - package: github.com/jessevdk/go-flags
-    ref: 4047bd797dd935ae2b557a79cc43f223066c9659
+- package: github.com/experimental-platform/platform-utils
+  version: ^1.0.0
+  subpackages:
+  - dockerutil
+- package: github.com/jessevdk/go-flags
+  version: ^1.0.0
+testImport:
+- package: github.com/stretchr/testify
+  version: ^1.1.3
+  subpackages:
+  - assert

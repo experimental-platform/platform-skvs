@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"io/ioutil"
@@ -9,10 +9,18 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
+var testDataPath string
+
+func expandPath(key string) string {
+	return filepath.Join(testDataPath, key)
+}
+
 func TestExpandPath(t *testing.T) {
-	expected := opts.DataPath + "/foobar"
+	expected := testDataPath + "/foobar"
 	actual := expandPath("foobar")
 	if expected != actual {
 		t.Errorf("Expected: '%s' Got: '%s'\n", expected, actual)
@@ -124,12 +132,16 @@ func TestHTTPGetKey(t *testing.T) {
 		t.Error(err)
 	}
 	w := httptest.NewRecorder()
+	tmpdir, err := ioutil.TempDir("", "")
+	assert.Nil(t, err)
+	defer os.RemoveAll(tmpdir)
+	handler := NewServerHandler(tmpdir, nil, nil)
 	handler(w, req)
 	if w.Code != http.StatusNotFound {
 		t.Errorf("Expected Code %d, got %d", http.StatusNotFound, w.Code)
 	}
 
-	testFilePath := expandPath("foobar")
+	testFilePath := filepath.Join(tmpdir, "foobar")
 	testContent := "foobar"
 	if err = os.MkdirAll(filepath.Dir(testFilePath), os.ModePerm); err != nil {
 		t.Errorf("Could not create directory '%s'\n", testFilePath)
@@ -509,13 +521,16 @@ func TestRemoveRecursive(t *testing.T) {
 }
 
 func cleanData() {
-	os.RemoveAll(opts.DataPath)
+	os.RemoveAll(testDataPath)
 	skvsCache = make(map[string]Entry)
-	opts.CacheExempt = []string{}
 }
 
 func TestMain(m *testing.M) {
-	opts.DataPath, _ = filepath.Abs("./data-test")
+	var err error
+	testDataPath, err = ioutil.TempDir("", "")
+	if err != nil {
+		panic(err)
+	}
 	exit := m.Run()
 	cleanData()
 	os.Exit(exit)
